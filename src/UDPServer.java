@@ -44,11 +44,11 @@ public class UDPServer {
                     byte[] seqBytes = intToBytes(seqNo);
                     socket.send(new DatagramPacket(seqBytes, seqBytes.length, clientAddress, clientPort));
                     bos.write(receivedPacket.data, 0, receivedPacket.data.length);
+                    bos.flush();
                     seqNo++;
                     count += receivedPacket.data.length;
                 }
             }
-            System.out.println("count = "+ count);
             fos.close();
             bos.close();
             socket.close();
