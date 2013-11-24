@@ -6,6 +6,8 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static java.lang.Math.random;
+
 public class UDPServer {
 
     public static void main(String[] args) {
@@ -40,17 +42,24 @@ public class UDPServer {
             FileOutputStream fos = new FileOutputStream(args[1]);
             BufferedOutputStream bos = new BufferedOutputStream(fos);
 
+            double failureProbability = Double.parseDouble(args[2]);
+
             int count = 0;
             while(count < fileSize) {
                 socket.receive(fileBytes);
                 Packet receivedPacket = Packet.extractPacket(fileBytes.getData());
-                if(receivedPacket.seqNo == seqNo) {
-                    byte[] seqBytes = intToBytes(seqNo);
-                    socket.send(new DatagramPacket(seqBytes, seqBytes.length, clientAddress, clientPort));
-                    bos.write(receivedPacket.data, 0, receivedPacket.data.length);
-                    bos.flush();
-                    seqNo++;
-                    count += receivedPacket.data.length;
+                if(random() > failureProbability) {
+                    if(receivedPacket.seqNo == seqNo) {
+                        byte[] seqBytes = intToBytes(seqNo);
+                        socket.send(new DatagramPacket(seqBytes, seqBytes.length, clientAddress, clientPort));
+                        bos.write(receivedPacket.data, 0, receivedPacket.data.length);
+                        bos.flush();
+                        seqNo++;
+                        count += receivedPacket.data.length;
+                    }
+                }
+                else {
+                    System.out.println("Packet loss, sequence number = " + receivedPacket.seqNo);
                 }
             }
             fos.close();
