@@ -87,6 +87,7 @@ public class UDPClient {
                     }
                 }
                 catch(SocketTimeoutException e) {
+                    System.out.println("Timeout, sequence number = " + window.packetList.get(0).seqNo);
                     for(Packet p: window.packetList)
                         sendPacket(p);
                 }

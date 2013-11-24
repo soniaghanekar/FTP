@@ -9,11 +9,17 @@ import java.nio.ByteOrder;
 public class UDPServer {
 
     public static void main(String[] args) {
+
+        if(args.length != 3) {
+            System.out.println("UDPServer Usage: UDPServer port# file-name p");
+            return;
+        }
+
         try {
             InetAddress clientAddress;
             int clientPort;
 
-            DatagramSocket socket = new DatagramSocket(7735);
+            DatagramSocket socket = new DatagramSocket(Integer.parseInt(args[0]));
             byte[] receiveData = new byte[Integer.SIZE];
 
             DatagramPacket packet = new DatagramPacket(receiveData, receiveData.length);
@@ -23,17 +29,15 @@ public class UDPServer {
             clientPort = packet.getPort();
 
             int mss = bytesToInt(receiveData);
-            System.out.println("MSS = " + mss);
 
             socket.receive(packet);
             int fileSize = bytesToInt(receiveData);
-            System.out.println("Filesize = " + fileSize);
 
             int seqNo =0;
 
             byte[] bytearray = new byte[mss + Integer.SIZE];
             DatagramPacket fileBytes = new DatagramPacket(bytearray, bytearray.length);
-            FileOutputStream fos = new FileOutputStream("../output");
+            FileOutputStream fos = new FileOutputStream(args[1]);
             BufferedOutputStream bos = new BufferedOutputStream(fos);
 
             int count = 0;
