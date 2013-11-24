@@ -29,14 +29,14 @@ public class UDPClient {
         client.socket.close();
     }
 
-    private byte[] readFileFromIndex(byte[] file, int index, int size) {
-        byte[] array = new byte[size];
-        for (int j = 0; j < size; j++) {
+    private int readFileFromIndex(byte[] file, int index, int size, byte[] array) {
+        int j;
+        for (j = 0; j < size; j++) {
             if (index == file.length)
                 break;
             array[j] = file[index++];
         }
-        return array;
+        return j;
     }
 
     private void sendFile(String fileName, int N, int mss) {
@@ -55,30 +55,35 @@ public class UDPClient {
 
             int fileIndex = 0;
             int seqNo = 0;
+            byte[] array = new byte[mss];
             for (int i = 0; i < window.size; i++) {
-                byte[] array = readFileFromIndex(fileInBytes, fileIndex, mss);
-                fileIndex += mss;
-                window.packetList.add(new Packet(array, seqNo++));
+                int count = readFileFromIndex(fileInBytes, fileIndex, mss, array);
+                if(count!=0) {
+                    fileIndex += count;
+                    Packet packet = new Packet(array, seqNo++);
+                    window.packetList.add(packet);
+                    sendPacket(packet);
+                }
             }
-
-            for (int i = 0; i < window.packetList.size(); i++)
-                sendPacket(window.packetList.get(i));
 
             byte[] ack = new byte[4];
             DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, serverAddress, serverPort);
 
-            while (fileIndex < fileInBytes.length) {
+            byte[] data = new byte[mss];
+            while (!window.packetList.isEmpty()) {
                 try {
                     socket.receive(ackPacket);
 
                     int ackedSeqNo = bytesToInt(ackPacket.getData());
                     if(window.packetList.get(0).seqNo == ackedSeqNo) {
-                        byte[] data = readFileFromIndex(fileInBytes, fileIndex, mss);
-                        fileIndex += mss;
                         window.packetList.remove(0);
-                        Packet packet = new Packet(data, seqNo++);
-                        window.packetList.add(packet);
-                        sendPacket(packet);
+                        int count = readFileFromIndex(fileInBytes, fileIndex, mss, data);
+                        if(count != 0) {
+                            fileIndex += count;
+                            Packet packet = new Packet(data, seqNo++);
+                            window.packetList.add(packet);
+                            sendPacket(packet);
+                        }
                     }
                 }
                 catch(SocketTimeoutException e) {
