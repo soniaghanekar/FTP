@@ -1,5 +1,4 @@
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -26,6 +25,8 @@ public class UDPClient {
         int mss = Integer.parseInt(args[4]);
         client.sendMssValue(mss);
         client.sendFile(args[2], Integer.parseInt(args[3]), mss);
+        client.socket.disconnect();
+        client.socket.close();
     }
 
     private byte[] readFileFromIndex(byte[] file, int index, int size) {
@@ -43,12 +44,20 @@ public class UDPClient {
             File file = new File(fileName);
             byte[] fileInBytes = new byte[(int) file.length()];
 
+            FileInputStream fin = new FileInputStream(file);
+            BufferedInputStream bin = new BufferedInputStream(fin);
+            bin.read(fileInBytes, 0, fileInBytes.length);
+
+            byte[] fileSize = intToBytes(fileInBytes.length);
+            socket.send(new DatagramPacket(fileSize, fileSize.length, serverAddress, serverPort));
+
             Window window = new Window(N);
 
             int fileIndex = 0;
             int seqNo = 0;
             for (int i = 0; i < window.size; i++) {
                 byte[] array = readFileFromIndex(fileInBytes, fileIndex, mss);
+                fileIndex += mss;
                 window.packetList.add(new Packet(array, seqNo++));
             }
 
@@ -65,6 +74,7 @@ public class UDPClient {
                     int ackedSeqNo = bytesToInt(ackPacket.getData());
                     if(window.packetList.get(0).seqNo == ackedSeqNo) {
                         byte[] data = readFileFromIndex(fileInBytes, fileIndex, mss);
+                        fileIndex += mss;
                         window.packetList.remove(0);
                         Packet packet = new Packet(data, seqNo++);
                         window.packetList.add(packet);

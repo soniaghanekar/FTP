@@ -21,7 +21,21 @@ public class Packet {
         return dataWithSeq;
     }
 
+    public static Packet extractPacket(byte[] byteArray) {
+        byte[] seqByte = new byte[Integer.SIZE];
+        System.arraycopy(byteArray, 0, seqByte, 0, Integer.SIZE);
+        int seqNo = bytesToInt(seqByte);
+        byte[] data = new byte[byteArray.length - Integer.SIZE];
+        System.arraycopy(byteArray, Integer.SIZE, data, 0, byteArray.length - Integer.SIZE);
+        return (new Packet(data, seqNo));
+    }
+
     private static byte[] intToBytes(int n) {
         return (ByteBuffer.allocate(Integer.SIZE).order(ByteOrder.BIG_ENDIAN).putInt(n)).array();
     }
+
+    private static int bytesToInt(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN).getInt();
+    }
+
 }
