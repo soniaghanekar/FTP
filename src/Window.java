@@ -2,11 +2,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Window {
-    List<Packet> window;
+    List<Packet> packetList;
     int size;
 
     public Window(int N) {
-        this.window = new ArrayList<Packet>();
+        this.packetList = new ArrayList<Packet>();
         this.size = N;
     }
 }

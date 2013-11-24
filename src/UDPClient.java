@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -27,31 +28,56 @@ public class UDPClient {
         client.sendFile(args[2], Integer.parseInt(args[3]), mss);
     }
 
+    private byte[] readFileFromIndex(byte[] file, int index, int size) {
+        byte[] array = new byte[size];
+        for (int j = 0; j < size; j++) {
+            if (index == file.length)
+                break;
+            array[j] = file[index++];
+        }
+        return array;
+    }
+
     private void sendFile(String fileName, int N, int mss) {
         try {
-        File file = new File(fileName);
-        byte[] fileInBytes = new byte[(int) file.length()];
+            File file = new File(fileName);
+            byte[] fileInBytes = new byte[(int) file.length()];
 
-        Window window = new Window(N);
+            Window window = new Window(N);
 
-        int fileIndex = 0;
-        int seqNo = 0;
-        for(int i=0; i<window.size; i++) {
-            byte[] array = new byte[mss];
-            for(int j=0;j<mss; j++) {
-                if(fileIndex < fileInBytes.length)
-                    array[j] = fileInBytes[fileIndex++];
+            int fileIndex = 0;
+            int seqNo = 0;
+            for (int i = 0; i < window.size; i++) {
+                byte[] array = readFileFromIndex(fileInBytes, fileIndex, mss);
+                window.packetList.add(new Packet(array, seqNo++));
             }
-            Packet packet = new Packet(array, seqNo++);
-            window.window.add(packet);
-        }
 
-        for(int i=0; i< window.window.size(); i++)
-            sendPacket(window.window.get(i));
+            for (int i = 0; i < window.packetList.size(); i++)
+                sendPacket(window.packetList.get(i));
 
-//        while(fileIndex < fileInBytes.length) {
-//
-//        }
+            byte[] ack = new byte[4];
+            DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, serverAddress, serverPort);
+
+            while (fileIndex < fileInBytes.length) {
+                try {
+                    socket.receive(ackPacket);
+
+                    int ackedSeqNo = bytesToInt(ackPacket.getData());
+                    if(window.packetList.get(0).seqNo == ackedSeqNo) {
+                        byte[] data = readFileFromIndex(fileInBytes, fileIndex, mss);
+                        window.packetList.remove(0);
+                        Packet packet = new Packet(data, seqNo++);
+                        window.packetList.add(packet);
+                        sendPacket(packet);
+                    }
+                }
+                catch(SocketTimeoutException e) {
+                    for(Packet p: window.packetList)
+                        sendPacket(p);
+                }
+
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -61,6 +87,7 @@ public class UDPClient {
         byte[] buf = packet.dataWithSeqNo();
         DatagramPacket dgram = new DatagramPacket(buf, buf.length, serverAddress, serverPort);
         socket.send(dgram);
+        socket.setSoTimeout(1000);
     }
 
     private void sendMssValue(int mss) {

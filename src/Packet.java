@@ -1,3 +1,5 @@
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -10,14 +12,12 @@ public class Packet {
         this.seqNo = seqNo;
     }
 
-    byte[] dataWithSeqNo() {
-        int i,j;
-
-        byte[] dataWithSeq = new byte[data.length + 4];
+    byte[] dataWithSeqNo() throws IOException {
         byte[] seqNum = intToBytes(seqNo);
-        dataWithSeq = seqNum;
-        for(i=seqNum.length, j=0; i<dataWithSeq.length; i++, j++)
-            dataWithSeq[i] = data[j];
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        os.write(seqNum);
+        os.write(data);
+        byte[] dataWithSeq = os.toByteArray();
         return dataWithSeq;
     }
 
