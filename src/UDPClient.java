@@ -29,14 +29,20 @@ public class UDPClient {
         client.socket.close();
     }
 
-    private int readFileFromIndex(byte[] file, int index, int size, byte[] array) {
+    private byte[] readFileFromIndex(byte[] file, int index, int size) {
         int j;
+        byte array[] = new byte[size];
         for (j = 0; j < size; j++) {
-            if (index == file.length)
-                break;
+            if (index >= file.length) {
+                if(j==0)
+                    return null;
+                byte[] smaller = new byte[j];
+                System.arraycopy(array, 0, smaller, 0, j);
+                return smaller;
+            }
             array[j] = file[index++];
         }
-        return j;
+        return array;
     }
 
     private void sendFile(String fileName, int N, int mss) {
@@ -55,21 +61,21 @@ public class UDPClient {
 
             int fileIndex = 0;
             int seqNo = 0;
-            byte[] array = new byte[mss];
+            byte[] array;
             for (int i = 0; i < window.size; i++) {
-                int count = readFileFromIndex(fileInBytes, fileIndex, mss, array);
-                if(count!=0) {
-                    fileIndex += count;
+                array = readFileFromIndex(fileInBytes, fileIndex, mss);
+                if(array != null) {
                     Packet packet = new Packet(array, seqNo++);
                     window.packetList.add(packet);
                     sendPacket(packet);
+                    fileIndex += array.length;
                 }
             }
 
             byte[] ack = new byte[4];
             DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, serverAddress, serverPort);
 
-            byte[] data = new byte[mss];
+            byte[] data;
             while (!window.packetList.isEmpty()) {
                 try {
                     socket.receive(ackPacket);
@@ -77,9 +83,9 @@ public class UDPClient {
                     int ackedSeqNo = bytesToInt(ackPacket.getData());
                     if(window.packetList.get(0).seqNo == ackedSeqNo) {
                         window.packetList.remove(0);
-                        int count = readFileFromIndex(fileInBytes, fileIndex, mss, data);
-                        if(count != 0) {
-                            fileIndex += count;
+                        data = readFileFromIndex(fileInBytes, fileIndex, mss);
+                        if(data != null) {
+                            fileIndex += data.length;
                             Packet packet = new Packet(data, seqNo++);
                             window.packetList.add(packet);
                             sendPacket(packet);
@@ -91,7 +97,6 @@ public class UDPClient {
                     for(Packet p: window.packetList)
                         sendPacket(p);
                 }
-
             }
 
         } catch (IOException e) {
