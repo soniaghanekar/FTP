@@ -1,5 +1,6 @@
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -35,40 +36,48 @@ public class UDPServer {
             socket.receive(packet);
             int fileSize = bytesToInt(receiveData);
 
-            int seqNo =0;
+            int seqNo = 0;
 
             byte[] bytearray = new byte[mss + Integer.SIZE];
             DatagramPacket fileBytes = new DatagramPacket(bytearray, bytearray.length);
-            FileOutputStream fos = new FileOutputStream(args[1]);
-            BufferedOutputStream bos = new BufferedOutputStream(fos);
+            PrintWriter printWriter = new PrintWriter(new BufferedWriter(new FileWriter(args[1])));
 
             double failureProbability = Double.parseDouble(args[2]);
 
             int count = 0;
             while(count < fileSize) {
                 socket.receive(fileBytes);
-                Packet receivedPacket = Packet.extractPacket(fileBytes.getData());
+                byte[] data = getProperSizedBuffer(fileBytes);
+                Packet receivedPacket = Packet.extractPacket(data);
                 if(random() > failureProbability) {
                     if(receivedPacket.seqNo == seqNo) {
                         byte[] seqBytes = intToBytes(seqNo);
                         socket.send(new DatagramPacket(seqBytes, seqBytes.length, clientAddress, clientPort));
-                        bos.write(receivedPacket.data, 0, receivedPacket.data.length);
-                        bos.flush();
+                        printWriter.print(new String(receivedPacket.data));
                         seqNo++;
                         count += receivedPacket.data.length;
+                        fileBytes = new DatagramPacket(bytearray, bytearray.length);
                     }
                 }
                 else {
                     System.out.println("Packet loss, sequence number = " + receivedPacket.seqNo);
                 }
             }
-            fos.close();
-            bos.close();
+            printWriter.close();
             socket.close();
 
         } catch (Exception e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
+    }
+
+    private static byte[] getProperSizedBuffer(DatagramPacket fileBytes) {
+        if(fileBytes.getLength() != fileBytes.getData().length){
+            byte[] bytes = new byte[fileBytes.getLength()];
+            System.arraycopy(fileBytes.getData(), 0, bytes, 0, fileBytes.getLength());
+            return bytes;
+        }
+        return fileBytes.getData();
     }
 
     private static byte[] intToBytes(int n) {
