@@ -58,6 +58,10 @@ public class UDPServer {
                         count += receivedPacket.data.length;
                         fileBytes = new DatagramPacket(bytearray, bytearray.length);
                     }
+                    else if(receivedPacket.seqNo < seqNo) {
+                        byte[] seqBytes = intToBytes(receivedPacket.seqNo);
+                        socket.send(new DatagramPacket(seqBytes, seqBytes.length, clientAddress, clientPort));
+                    }
                 }
                 else {
                     System.out.println("Packet loss, sequence number = " + receivedPacket.seqNo);
