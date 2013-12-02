@@ -24,7 +24,10 @@ public class UDPClient {
 
         int mss = Integer.parseInt(args[4]);
         client.sendMssValue(mss);
+        long startTime = System.currentTimeMillis();
         client.sendFile(args[2], Integer.parseInt(args[3]), mss);
+        long endTime = System.currentTimeMillis();
+        System.out.println("Time taken = " + (endTime-startTime)/1000);
         client.socket.disconnect();
         client.socket.close();
     }
